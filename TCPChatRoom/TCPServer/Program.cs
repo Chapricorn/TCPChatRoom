@@ -75,12 +75,12 @@ namespace TCPServer
         /// <param name="args"></param>
         static void Main(string[] args)
         {
-            //Queue queue = new Queue();
+     
 
 
             receive = new Thread(RecieveBuffer);
-            Console.WriteLine(" Your Local Ip is " + GetLocalIP());
-            Console.WriteLine(" Please enter your name ");
+            Console.WriteLine(" Your Ip is " + GetLocalIP());
+            Console.WriteLine(" Please enter your Name ");
             name = Console.ReadLine();
             Console.WriteLine(" Please enter your IP Address to connect: ");
             string prt = Console.ReadLine();

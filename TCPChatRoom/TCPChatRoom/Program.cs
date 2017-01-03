@@ -51,7 +51,7 @@ namespace TCPClient
         {
             rec = new Thread(RecieveBuffer);
             Console.WriteLine(" Your Ip is " + GetLocalIP());
-            Console.WriteLine(" Please enter your name");
+            Console.WriteLine(" Please enter your Name");
             name = Console.ReadLine();
             ip = IPAddress.Parse(GetLocalIP());
             Console.WriteLine(" Please enter your IP Address to connect: ");
@@ -71,12 +71,12 @@ namespace TCPClient
             sck = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             sck.Connect(new IPEndPoint(ip, port));
             rec.Start();
-            byte[] data = Encoding.Default.GetBytes("<" + name + "> Connected ");
+            byte[] data = Encoding.Default.GetBytes("<" + name + " > is Connected ");
             sck.Send(data, 0, data.Length, 0);
 
             while (sck.Connected)
             {
-                byte[] sdata = Encoding.Default.GetBytes("<" + name + ">" + Console.ReadLine());
+                byte[] sdata = Encoding.Default.GetBytes("<" + name + "> " + Console.ReadLine());
                 sck.Send(sdata, 0, sdata.Length, 0);
                
 
