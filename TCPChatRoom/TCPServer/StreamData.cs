@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 
 namespace StreamData
 {
+    //[Serializable]
     public class StreamData : BinaryWriter
     {
         public List<string> AllData;
