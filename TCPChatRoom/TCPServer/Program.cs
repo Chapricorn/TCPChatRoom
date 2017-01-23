@@ -48,7 +48,7 @@ namespace Server
             {
                 listenerSocket.Listen(0);
                 Users.Add(new UserData(listenerSocket.Accept()));
-                Console.WriteLine(" A new User has joined!");
+                Console.WriteLine(" A User has joined!");
             }
         }
 
