@@ -1,85 +1,91 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using StreamData;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 
-
-namespace TCPClient
+namespace Client
 {
-    class Program
+    class Client
     {
-
-        static string name;
-        static int port = 9000;
-        static IPAddress ip;
-        static Socket sck;
-        static Thread rec;
-
-
-        static string GetLocalIP()
-        {
-            IPHostEntry host;
-            host = Dns.GetHostEntry(Dns.GetHostName());
-
-            foreach (IPAddress ip in host.AddressList)
-            {
-                if (ip.AddressFamily == AddressFamily.InterNetwork)
-                {
-                    return ip.ToString();
-                }
-            }
-
-            return "127.0.0.1";
-        }
-
-        static void RecieveBuffer()
-        {
-            while (true)
-            {
-                Thread.Sleep(500);
-                byte[] buffer = new byte[300];
-                int rece = sck.Receive(buffer, 0, buffer.Length, 0);
-                Array.Resize(ref buffer, rece);
-                Console.WriteLine(Encoding.Default.GetString(buffer));
-            }
-        }
+        public static Socket mySocket;
+        public static string name;
+        public static string ID;
 
         static void Main(string[] args)
         {
-            rec = new Thread(RecieveBuffer);
-            Console.WriteLine(" Your Ip is " + GetLocalIP());
-            Console.WriteLine(" Please enter your Name");
+            Console.WriteLine(" Please Enter your Name: ");
             name = Console.ReadLine();
-            ip = IPAddress.Parse(GetLocalIP());
-            Console.WriteLine(" Please enter your IP Address to connect: ");
-            string prt = Console.ReadLine();
-            Console.WriteLine(" You are now connected {0}. \nSay Hello: ", name);
+
+            Console.Clear();
+            Console.WriteLine(" Please Enter your IP address to Connect:");
+            string IP = Console.ReadLine();
+
+            mySocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            IPEndPoint IP_end = new IPEndPoint(IPAddress.Parse(IP), 4242);
 
             try
             {
-                port = Convert.ToInt32(prt);
-
+                mySocket.Connect(IP_end);
             }
             catch
             {
-                port = 9000;
+                Console.WriteLine(" Connection failed. \n");
             }
 
-            sck = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            sck.Connect(new IPEndPoint(ip, port));
-            rec.Start();
-            byte[] data = Encoding.Default.GetBytes("<" + name + " > is Connected ");
-            sck.Send(data, 0, data.Length, 0);
+            Thread thread = new Thread(UserData);
+            thread.Start();
 
-            while (sck.Connected)
+            for (;;)
             {
-                byte[] sdata = Encoding.Default.GetBytes("<" + name + "> " + Console.ReadLine());
-                sck.Send(sdata, 0, sdata.Length, 0);
-               
+                Console.Write("");
+                string input = Console.ReadLine();
 
+                StreamData.StreamData streamPacket = new StreamData.StreamData(TypeData.stream, ID);
+                streamPacket.AllData.Add(name);
+                streamPacket.AllData.Add(input);
+                mySocket.Send(streamPacket.ToBytes());
+            }
+        }
+
+        static void UserData()
+        {
+            byte[] buffer;
+            int readBytes;
+
+            for (;;)
+            {
+                try
+                {
+                    buffer = new byte[mySocket.SendBufferSize];
+                    readBytes = mySocket.Receive(buffer);
+
+                    if (readBytes > 0)
+                    {
+                        DataManager(new StreamData.StreamData(buffer));
+                    }
+                }
+                catch (SocketException)
+                {
+                    Console.WriteLine(" The server has Shut Down! ");
+                    Console.ReadLine();
+                    Environment.Exit(0);
+                }
+            }
+
+        }
+        static void DataManager(StreamData.StreamData packet)
+        {
+            switch (packet.typeData)
+            {
+                case TypeData.StreamNotification:
+                    Console.WriteLine(" You are now connected {0}. ", name);
+                    ID = packet.AllData[0];
+                    break;
+                case TypeData.stream:
+                    Console.WriteLine(packet.AllData[0] + ": " + packet.AllData[1]);
+                    break;
             }
         }
     }

@@ -1,115 +1,97 @@
-﻿using System;
+﻿using StreamData;
+using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
-using System.Collections;
 
-namespace TCPServer
+namespace Server
 {
-    class Program
+    class Server
     {
         static Socket listenerSocket;
-        static Socket acc;
-        static int port = 9000;
-        static IPAddress ip;
-        static Thread receive;
-        static string name;
-        static Queue queue = new Queue();
+        static List<UserData> Users;
 
+        public static Queue<string> messageQueue = new Queue<string>();
+        public static Dictionary<TcpClient, string> clientDictionary = new Dictionary<TcpClient, string>();
 
-        static string GetLocalIP()
+        public static void Main(string[] args)
         {
-            IPHostEntry host;
-            host = Dns.GetHostEntry(Dns.GetHostName());
-
-            foreach (IPAddress ip in host.AddressList)
-            {
-                if (ip.AddressFamily == AddressFamily.InterNetwork)
-                {
-                    return ip.ToString();
-                }
-            }
-
-            return "127.0.0.1";
-        }
-
-        static void RecieveBuffer()
-        {
-            while (true)
-            {
-                Thread.Sleep(500);
-                byte[] buffer = new byte[300];
-                int rece = acc.Receive(buffer, 0, buffer.Length, 0);
-                Array.Resize(ref buffer, rece);
-                Console.WriteLine(Encoding.Default.GetString(buffer));
-                queue.Enqueue(Encoding.Default.GetString(buffer));
-
-                //DisplayQueueItems();
-                // TODO: how do I print the queue
-            }
-
-
-        }
-
-        /// <summary>
-        /// Print queue items
-        /// </summary>
-        public void DisplayQueueItems()
-        {
-            Console.WriteLine("Number of elements in the Queue: {0}", queue.Count);
-
-            while (queue.Count > 0)
-                Console.WriteLine(queue.Dequeue());
-
-            Console.WriteLine("Number of elements in the Queue: {0}", queue.Count);
-            Console.ReadLine();
-        }
-
-
-        /// <summary>
-        /// Main Method
-        /// </summary>
-        /// <param name="args"></param>
-        static void Main(string[] args)
-        {
-     
-
-
-            receive = new Thread(RecieveBuffer);
-            Console.WriteLine(" Your Ip is " + GetLocalIP());
-            Console.WriteLine(" Please enter your Name ");
-            name = Console.ReadLine();
-            Console.WriteLine(" Please enter your IP Address to connect: ");
-            string prt = Console.ReadLine();
-            Console.WriteLine(" You are now connected {0}. \n Wait for a User to Connect. ", name);
-
-            try
-            {
-                port = Convert.ToInt32(prt);
-            }
-            catch
-            {
-                port = 9000;
-            }
-
-            ip = IPAddress.Parse(GetLocalIP());
+            Console.WriteLine(" Connecting to Ip Address: " + StreamData.StreamData.GetIPAddress());
 
             listenerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            listenerSocket.Bind(new IPEndPoint(ip, port));
-            listenerSocket.Listen(0);
-            acc = listenerSocket.Accept();
-            receive.Start();
+            Users = new List<UserData>();
+
+            IPEndPoint IP_End = new IPEndPoint(IPAddress.Parse(StreamData.StreamData.GetIPAddress()), 4242);
+            listenerSocket.Bind(IP_End);
+
+            Thread listenThread = new Thread(ListenThread);
+            listenThread.Start();
+
+            Console.WriteLine(" Connected! Waiting for Users to Connect \nListening IP: " + StreamData.StreamData.GetIPAddress());
+        }
+        public static void addToUserList()
+        {
+            TcpListener myList;
+            myList = new TcpListener(IPAddress.Any, 4242);
             while (true)
             {
-                byte[] sdata = Encoding.Default.GetBytes("<" + name + ">" + Console.ReadLine());
-                acc.Send(sdata, 0, sdata.Length, 0);
-            
+                TcpClient user = myList.AcceptTcpClient();
+                clientDictionary.Add(user, " name ");
             }
+        }
 
+        static void ListenThread()
+        {
+            while (true)
+            {
+                listenerSocket.Listen(0);
+                Users.Add(new UserData(listenerSocket.Accept()));
+                Console.WriteLine(" A new User has joined!");
+            }
+        }
 
+        public static void UserData(object user_socket)
+        {
+            Socket userSocket = (Socket)user_socket;
+
+            byte[] buffer;
+            int readBytes;
+
+            for (;;)
+            {
+                try
+                {
+                    buffer = new byte[userSocket.SendBufferSize];
+                    readBytes = userSocket.Receive(buffer);
+
+                    if (readBytes > 0)
+                    {
+                        StreamData.StreamData packet = new StreamData.StreamData(buffer);
+                        DataManager(packet);
+                    }
+                }
+                catch (SocketException)
+                {
+                    Console.WriteLine(" A User has left.");
+                    Console.ReadLine();
+                    Environment.Exit(0);
+                }
+            }
+        }
+
+        public static void DataManager(StreamData.StreamData packet)
+        {
+            switch (packet.typeData)
+            {
+                case TypeData.stream:
+                    foreach (UserData client in Users)
+                    {
+                        client.userSocket.Send(packet.ToBytes());
+                    }
+                    break;
+            }
         }
     }
 }
